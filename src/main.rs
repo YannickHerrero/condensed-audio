@@ -123,9 +123,32 @@ fn run() -> Result<()> {
     println!("encoding to {} …", out.mp3.display());
     extract::encode(&video, audio_idx, &segments, &out.mp3)?;
     srt::write(&out.srt, &remapped)?;
+
+    let condensed_ms = segments::total_duration_ms(&segments);
     println!("done: {}", out.dir.display());
+    match probe.duration_ms {
+        Some(orig) if orig > 0 => println!(
+            "original: {} → condensed: {} ({:.1}%)",
+            fmt_duration(orig),
+            fmt_duration(condensed_ms),
+            100.0 * condensed_ms as f64 / orig as f64,
+        ),
+        _ => println!("condensed: {}", fmt_duration(condensed_ms)),
+    }
 
     Ok(())
+}
+
+fn fmt_duration(ms: u64) -> String {
+    let total_secs = ms / 1000;
+    let h = total_secs / 3600;
+    let m = (total_secs % 3600) / 60;
+    let s = total_secs % 60;
+    if h > 0 {
+        format!("{h}h{m:02}m{s:02}s")
+    } else {
+        format!("{m}m{s:02}s")
+    }
 }
 
 fn pick_video(cwd: &std::path::Path) -> Result<Option<PathBuf>> {
