@@ -109,17 +109,17 @@ fn run() -> Result<()> {
         segments::total_duration_ms(&segments) as f64 / 1000.0
     );
 
-    // 7. Resolve output path + confirm overwrite.
-    let out_path = output::resolve_path(&cwd, &video);
-    if !output::confirm_overwrite(&out_path)? {
+    // 7. Resolve output paths + confirm overwrite.
+    let out = output::resolve(&cwd, &video);
+    if !output::ensure_dir_and_confirm(&out)? {
         println!("aborted by user.");
         return Ok(());
     }
 
     // 8. Encode.
-    println!("encoding to {} …", out_path.display());
-    extract::encode(&video, audio_idx, &segments, &out_path)?;
-    println!("done: {}", out_path.display());
+    println!("encoding to {} …", out.mp3.display());
+    extract::encode(&video, audio_idx, &segments, &out.mp3)?;
+    println!("done: {}", out.dir.display());
 
     Ok(())
 }
