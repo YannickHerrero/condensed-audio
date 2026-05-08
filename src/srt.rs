@@ -102,6 +102,11 @@ pub fn clean_text(input: &str) -> String {
         if is_fully_bracketed(trimmed) {
             continue;
         }
+        // Drop lines that have no letters/digits/kana/kanji left — typically
+        // residue like "~", "〜", "...", "???" after the music glyph was stripped.
+        if !trimmed.chars().any(|c| c.is_alphanumeric()) {
+            continue;
+        }
         out_lines.push(trimmed.to_string());
     }
     let joined = out_lines.join("\n");
@@ -232,6 +237,32 @@ mod tests {
         // Whole cue is one parenthesized block split across lines.
         assert_eq!(clean_text("(Internal\nmonologue)"), "");
         assert_eq!(clean_text("（これは\n独白です）"), "");
+    }
+
+    #[test]
+    fn drops_music_with_wave_dash() {
+        // ♪ + ASCII tilde — the residue after stripping the note alone
+        assert_eq!(clean_text("\u{266A}~"), "");
+        // ♪ + Japanese wave dash (U+301C) — sustained-singing marker
+        assert_eq!(clean_text("\u{266A}\u{301C}"), "");
+        // ♪ + full-width tilde (U+FF5E)
+        assert_eq!(clean_text("\u{266A}\u{FF5E}"), "");
+    }
+
+    #[test]
+    fn drops_lines_with_no_letters() {
+        assert_eq!(clean_text("..."), "");
+        assert_eq!(clean_text("???"), "");
+        assert_eq!(clean_text("---"), "");
+    }
+
+    #[test]
+    fn keeps_japanese_wave_dash_when_attached_to_text() {
+        // "Otsukaresama~" — wave dash extends the vowel; this is real dialogue.
+        assert_eq!(
+            clean_text("お疲れ様\u{301C}"),
+            "お疲れ様\u{301C}"
+        );
     }
 
     #[test]
