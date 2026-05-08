@@ -1,6 +1,7 @@
 mod audio;
 mod cli;
 mod discovery;
+mod extract;
 mod ffprobe;
 mod picker;
 mod segments;
