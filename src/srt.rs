@@ -99,12 +99,19 @@ pub fn clean_text(input: &str) -> String {
         if trimmed.is_empty() {
             continue;
         }
-        if is_only_bracketed(trimmed) {
+        if is_fully_bracketed(trimmed) {
             continue;
         }
         out_lines.push(trimmed.to_string());
     }
-    out_lines.join("\n")
+    let joined = out_lines.join("\n");
+    // Catches multi-line cues that are wrapped in a single pair of parens,
+    // e.g. "(Internal\nmonologue)" or "（電話で\n話している）" — typically
+    // narration / sound descriptions that aren't actually spoken.
+    if is_fully_bracketed(&joined) {
+        return String::new();
+    }
+    joined
 }
 
 pub fn write(path: &Path, cues: &[Cue]) -> Result<()> {
@@ -155,11 +162,20 @@ fn music_re() -> &'static Regex {
     R.get_or_init(|| Regex::new(r"[\u{266A}\u{266B}\u{266C}\u{266D}\u{266E}\u{266F}]").unwrap())
 }
 
-/// True when the line is entirely a bracketed SDH descriptor like
-/// "[door slams]" or "(in Spanish)".
-fn is_only_bracketed(line: &str) -> bool {
-    let s = line.trim();
-    (s.starts_with('[') && s.ends_with(']')) || (s.starts_with('(') && s.ends_with(')'))
+/// True when the input (single line or whole cue) is wrapped in one pair of
+/// brackets — half-width `[...]` / `(...)` and Japanese full-width
+/// `（...）` / `【...】`. Used to drop SDH descriptors like "[door slams]"
+/// and Japanese narration cues like "（電話で話している）".
+fn is_fully_bracketed(s: &str) -> bool {
+    let trimmed = s.trim();
+    let Some(first) = trimmed.chars().next() else {
+        return false;
+    };
+    let last = trimmed.chars().last().unwrap();
+    matches!(
+        (first, last),
+        ('[', ']') | ('(', ')') | ('（', '）') | ('【', '】')
+    )
 }
 
 #[cfg(test)]
@@ -203,6 +219,28 @@ mod tests {
         assert_eq!(clean_text("[door slams]"), "");
         assert_eq!(clean_text("(in Spanish)"), "");
         assert_eq!(clean_text("Hello\n[noise]\nworld"), "Hello\nworld");
+    }
+
+    #[test]
+    fn drops_full_width_japanese_parens() {
+        assert_eq!(clean_text("（あの…）"), "");
+        assert_eq!(clean_text("【ナレーション】"), "");
+    }
+
+    #[test]
+    fn drops_multi_line_parenthesized_cue() {
+        // Whole cue is one parenthesized block split across lines.
+        assert_eq!(clean_text("(Internal\nmonologue)"), "");
+        assert_eq!(clean_text("（これは\n独白です）"), "");
+    }
+
+    #[test]
+    fn keeps_inline_parens() {
+        // Parens used mid-line are not noise — only fully-wrapped cues are.
+        assert_eq!(
+            clean_text("Hello (sigh) world"),
+            "Hello (sigh) world"
+        );
     }
 
     #[test]
