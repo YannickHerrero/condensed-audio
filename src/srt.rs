@@ -91,23 +91,33 @@ fn parse_timestamp(s: &str) -> Result<u64> {
 pub fn clean_text(input: &str) -> String {
     let html = html_re().replace_all(input, "");
     let ass = ass_re().replace_all(&html, "");
-    let no_music = music_re().replace_all(&ass, "");
 
     let mut out_lines: Vec<String> = Vec::new();
-    for line in no_music.lines() {
+    for line in ass.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
+            continue;
+        }
+        // Drop OP/ED lyric lines — anything that begins with a music-note glyph.
+        if starts_with_music_note(trimmed) {
             continue;
         }
         if is_fully_bracketed(trimmed) {
             continue;
         }
-        // Drop lines that have no letters/digits/kana/kanji left — typically
-        // residue like "~", "〜", "...", "???" after the music glyph was stripped.
-        if !trimmed.chars().any(|c| c.is_alphanumeric()) {
+        // Strip stray music notes used as mid-line decoration before the
+        // alphanumeric check, and collapse the resulting whitespace runs.
+        let stripped = music_re().replace_all(trimmed, "");
+        let normalized = stripped.split_whitespace().collect::<Vec<_>>().join(" ");
+        if normalized.is_empty() {
             continue;
         }
-        out_lines.push(trimmed.to_string());
+        // Drop lines with no letters/digits/kana/kanji left — typically residue
+        // like "~", "〜", "...", "???".
+        if !normalized.chars().any(|c| c.is_alphanumeric()) {
+            continue;
+        }
+        out_lines.push(normalized);
     }
     let joined = out_lines.join("\n");
     // Catches multi-line cues that are wrapped in a single pair of parens,
@@ -165,6 +175,13 @@ fn ass_re() -> &'static Regex {
 fn music_re() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
     R.get_or_init(|| Regex::new(r"[\u{266A}\u{266B}\u{266C}\u{266D}\u{266E}\u{266F}]").unwrap())
+}
+
+fn starts_with_music_note(s: &str) -> bool {
+    matches!(
+        s.chars().next(),
+        Some('\u{266A}' | '\u{266B}' | '\u{266C}' | '\u{266D}' | '\u{266E}' | '\u{266F}')
+    )
 }
 
 /// True when the input (single line or whole cue) is wrapped in one pair of
@@ -240,6 +257,26 @@ mod tests {
     }
 
     #[test]
+    fn drops_lines_starting_with_music_note() {
+        // OP/ED lyric line — drop entirely (don't try to keep "La la la").
+        assert_eq!(clean_text("\u{266A} La la la"), "");
+        // Multi-line full song lyric.
+        assert_eq!(
+            clean_text("\u{266A} First lyric\n\u{266A} Second lyric"),
+            ""
+        );
+    }
+
+    #[test]
+    fn keeps_real_dialogue_alongside_music_line() {
+        // Mixed cue: drop the music line, keep the dialogue line.
+        assert_eq!(
+            clean_text("Real dialogue\n\u{266A} song lyric"),
+            "Real dialogue"
+        );
+    }
+
+    #[test]
     fn drops_music_with_wave_dash() {
         // ♪ + ASCII tilde — the residue after stripping the note alone
         assert_eq!(clean_text("\u{266A}~"), "");
@@ -275,8 +312,9 @@ mod tests {
     }
 
     #[test]
-    fn strips_music_notes() {
-        assert_eq!(clean_text("\u{266A} la la la \u{266A}"), "la la la");
+    fn strips_mid_line_music_notes() {
+        // Mid-line note used as decoration is stripped, line is kept.
+        assert_eq!(clean_text("Hello \u{266A} world"), "Hello world");
     }
 
     #[test]
