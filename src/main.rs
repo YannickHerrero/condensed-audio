@@ -3,6 +3,7 @@ mod cli;
 mod discovery;
 mod ffprobe;
 mod picker;
+mod segments;
 mod srt;
 mod subtitle;
 
