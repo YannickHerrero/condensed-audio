@@ -26,12 +26,7 @@ fn build_filter(audio_idx: u32, segments: &[Segment]) -> String {
     )
 }
 
-pub fn encode(
-    video: &Path,
-    audio_idx: u32,
-    segments: &[Segment],
-    output: &Path,
-) -> Result<()> {
+pub fn encode(video: &Path, audio_idx: u32, segments: &[Segment], output: &Path) -> Result<()> {
     if segments.is_empty() {
         bail!("no segments to encode — nothing to do");
     }
@@ -48,13 +43,19 @@ pub fn encode(
 
     let status = Command::new("ffmpeg")
         .arg("-y")
-        .arg("-v").arg("error")
+        .arg("-v")
+        .arg("error")
         .arg("-stats")
-        .arg("-i").arg(video)
-        .arg("-filter_complex_script").arg(filter_file.path())
-        .arg("-map").arg("[out]")
-        .arg("-c:a").arg("libmp3lame")
-        .arg("-b:a").arg("128k")
+        .arg("-i")
+        .arg(video)
+        .arg("-filter_complex_script")
+        .arg(filter_file.path())
+        .arg("-map")
+        .arg("[out]")
+        .arg("-c:a")
+        .arg("libmp3lame")
+        .arg("-b:a")
+        .arg("128k")
         .arg(output)
         .status()
         .context("failed to spawn ffmpeg")?;
@@ -72,8 +73,14 @@ mod tests {
     #[test]
     fn filter_includes_each_segment() {
         let segs = vec![
-            Segment { start_ms: 1000, end_ms: 2500 },
-            Segment { start_ms: 4000, end_ms: 5500 },
+            Segment {
+                start_ms: 1000,
+                end_ms: 2500,
+            },
+            Segment {
+                start_ms: 4000,
+                end_ms: 5500,
+            },
         ];
         let filter = build_filter(2, &segs);
         assert!(filter.starts_with("[0:a:2]aselect='"));

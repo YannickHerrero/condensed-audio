@@ -12,7 +12,12 @@ impl Segment {
     }
 }
 
-pub fn build(cues: &[Cue], pad_ms: u32, gap_ms: u32, total_duration_ms: Option<u64>) -> Vec<Segment> {
+pub fn build(
+    cues: &[Cue],
+    pad_ms: u32,
+    gap_ms: u32,
+    total_duration_ms: Option<u64>,
+) -> Vec<Segment> {
     let pad = pad_ms as u64;
     let max_end = total_duration_ms.unwrap_or(u64::MAX);
 
@@ -51,19 +56,35 @@ mod tests {
     use super::*;
 
     fn cue(start: u64, end: u64) -> Cue {
-        Cue { start_ms: start, end_ms: end, text: "x".into() }
+        Cue {
+            start_ms: start,
+            end_ms: end,
+            text: "x".into(),
+        }
     }
 
     #[test]
     fn pads_clamps_to_zero() {
         let segs = build(&[cue(100, 500)], 500, 0, None);
-        assert_eq!(segs, vec![Segment { start_ms: 0, end_ms: 1000 }]);
+        assert_eq!(
+            segs,
+            vec![Segment {
+                start_ms: 0,
+                end_ms: 1000
+            }]
+        );
     }
 
     #[test]
     fn pads_clamps_to_total_duration() {
         let segs = build(&[cue(0, 9_500)], 500, 0, Some(10_000));
-        assert_eq!(segs, vec![Segment { start_ms: 0, end_ms: 10_000 }]);
+        assert_eq!(
+            segs,
+            vec![Segment {
+                start_ms: 0,
+                end_ms: 10_000
+            }]
+        );
     }
 
     #[test]
@@ -71,7 +92,13 @@ mod tests {
         // cue1: 1000-2000 padded -> 500-2500
         // cue2: 2400-3000 padded -> 1900-3500 -> overlaps
         let segs = build(&[cue(1000, 2000), cue(2400, 3000)], 500, 0, None);
-        assert_eq!(segs, vec![Segment { start_ms: 500, end_ms: 3500 }]);
+        assert_eq!(
+            segs,
+            vec![Segment {
+                start_ms: 500,
+                end_ms: 3500
+            }]
+        );
     }
 
     #[test]
@@ -79,7 +106,13 @@ mod tests {
         // padded ranges: 500-2500 and 3000-5000 — gap 500ms
         let segs = build(&[cue(1000, 2000), cue(3500, 4500)], 500, 600, None);
         assert_eq!(segs.len(), 1);
-        assert_eq!(segs[0], Segment { start_ms: 500, end_ms: 5000 });
+        assert_eq!(
+            segs[0],
+            Segment {
+                start_ms: 500,
+                end_ms: 5000
+            }
+        );
     }
 
     #[test]

@@ -17,13 +17,12 @@ pub enum Source {
 }
 
 pub fn prompt_source() -> Result<Option<Source>> {
-    let lines = [
-        "Embedded subtitle track",
-        "External SRT file",
-    ];
+    let lines = ["Embedded subtitle track", "External SRT file"];
     let picked = picker::pick(
         lines.iter().copied(),
-        PickOpts { prompt: "subtitle source" },
+        PickOpts {
+            prompt: "subtitle source",
+        },
     )?;
     Ok(picked.map(|s| match s.as_str() {
         "Embedded subtitle track" => Source::Embedded,
@@ -36,13 +35,12 @@ pub fn pick_external_srt(root: &Path) -> Result<Option<PathBuf>> {
     if srts.is_empty() {
         bail!("no .srt files found under {}", root.display());
     }
-    let labels: Vec<String> = srts
-        .iter()
-        .map(|p| p.display().to_string())
-        .collect();
+    let labels: Vec<String> = srts.iter().map(|p| p.display().to_string()).collect();
     let picked = picker::pick(
         labels.iter().map(String::as_str),
-        PickOpts { prompt: "external srt" },
+        PickOpts {
+            prompt: "external srt",
+        },
     )?;
     Ok(picked.map(PathBuf::from))
 }
@@ -62,16 +60,17 @@ pub fn pick_embedded_track(streams: &[&Stream]) -> Result<Option<u32>> {
         bail!("no text-based embedded subtitle tracks found (PGS/VobSub aren't supported)");
     }
 
-    let labels: Vec<String> = candidates
-        .iter()
-        .map(|s| format_stream_label(s))
-        .collect();
+    let labels: Vec<String> = candidates.iter().map(|s| format_stream_label(s)).collect();
 
     let picked = picker::pick(
         labels.iter().map(String::as_str),
-        PickOpts { prompt: "subtitle track" },
+        PickOpts {
+            prompt: "subtitle track",
+        },
     )?;
-    let Some(picked) = picked else { return Ok(None) };
+    let Some(picked) = picked else {
+        return Ok(None);
+    };
 
     let idx = labels.iter().position(|l| *l == picked).unwrap();
     Ok(Some(candidates[idx].index))
@@ -88,10 +87,14 @@ pub fn extract_embedded_to_srt(video: &Path, stream_index: u32) -> Result<NamedT
 
     let status = Command::new("ffmpeg")
         .arg("-y")
-        .arg("-v").arg("error")
-        .arg("-i").arg(video)
-        .arg("-map").arg(format!("0:{stream_index}"))
-        .arg("-c:s").arg("srt")
+        .arg("-v")
+        .arg("error")
+        .arg("-i")
+        .arg(video)
+        .arg("-map")
+        .arg(format!("0:{stream_index}"))
+        .arg("-c:s")
+        .arg("srt")
         .arg(tmp.path())
         .status()
         .context("failed to spawn ffmpeg")?;
@@ -110,6 +113,9 @@ fn format_stream_label(s: &Stream) -> String {
     if title.is_empty() {
         format!("#{}  lang={}  codec={}", s.index, lang, codec)
     } else {
-        format!("#{}  lang={}  codec={}  title={}", s.index, lang, codec, title)
+        format!(
+            "#{}  lang={}  codec={}  title={}",
+            s.index, lang, codec, title
+        )
     }
 }

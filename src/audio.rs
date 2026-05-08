@@ -22,9 +22,13 @@ fn prompt_audio(audio_streams: &[&Stream]) -> Result<Option<u32>> {
 
     let picked = picker::pick(
         labels.iter().map(String::as_str),
-        PickOpts { prompt: "audio track" },
+        PickOpts {
+            prompt: "audio track",
+        },
     )?;
-    let Some(picked) = picked else { return Ok(None) };
+    let Some(picked) = picked else {
+        return Ok(None);
+    };
 
     let idx = labels.iter().position(|l| *l == picked).unwrap();
     Ok(Some(idx as u32))
@@ -33,7 +37,10 @@ fn prompt_audio(audio_streams: &[&Stream]) -> Result<Option<u32>> {
 fn format_audio_label(audio_idx: usize, s: &Stream) -> String {
     let codec = s.codec_name.as_deref().unwrap_or("?");
     let lang = s.language().unwrap_or("und");
-    let ch = s.channels.map(|c| c.to_string()).unwrap_or_else(|| "?".into());
+    let ch = s
+        .channels
+        .map(|c| c.to_string())
+        .unwrap_or_else(|| "?".into());
     let title = s.title().unwrap_or("");
     if title.is_empty() {
         format!(

@@ -20,7 +20,11 @@ pub fn confirm_overwrite(path: &Path) -> Result<bool> {
     }
     let stdout = std::io::stdout();
     let mut stdout = stdout.lock();
-    write!(stdout, "{} already exists. Overwrite? [y/N] ", path.display())?;
+    write!(
+        stdout,
+        "{} already exists. Overwrite? [y/N] ",
+        path.display()
+    )?;
     stdout.flush()?;
 
     let stdin = std::io::stdin();

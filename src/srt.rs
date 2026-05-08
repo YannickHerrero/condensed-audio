@@ -139,8 +139,7 @@ fn music_re() -> &'static Regex {
 /// "[door slams]" or "(in Spanish)".
 fn is_only_bracketed(line: &str) -> bool {
     let s = line.trim();
-    (s.starts_with('[') && s.ends_with(']'))
-        || (s.starts_with('(') && s.ends_with(')'))
+    (s.starts_with('[') && s.ends_with(']')) || (s.starts_with('(') && s.ends_with(')'))
 }
 
 #[cfg(test)]
@@ -194,9 +193,21 @@ mod tests {
     #[test]
     fn filter_noise_drops_empty_cues() {
         let cues = vec![
-            Cue { start_ms: 0, end_ms: 1000, text: "[music]".into() },
-            Cue { start_ms: 1000, end_ms: 2000, text: "Real line".into() },
-            Cue { start_ms: 2000, end_ms: 3000, text: "<i>♪</i>".into() },
+            Cue {
+                start_ms: 0,
+                end_ms: 1000,
+                text: "[music]".into(),
+            },
+            Cue {
+                start_ms: 1000,
+                end_ms: 2000,
+                text: "Real line".into(),
+            },
+            Cue {
+                start_ms: 2000,
+                end_ms: 3000,
+                text: "<i>♪</i>".into(),
+            },
         ];
         let kept = filter_noise(cues);
         assert_eq!(kept.len(), 1);

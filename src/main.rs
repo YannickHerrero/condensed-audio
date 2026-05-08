@@ -16,7 +16,7 @@ use std::process::ExitCode;
 use anyhow::{Context, Result, bail};
 use clap::Parser;
 
-use crate::picker::{pick, PickOpts};
+use crate::picker::{PickOpts, pick};
 use crate::subtitle::Source;
 
 fn main() -> ExitCode {

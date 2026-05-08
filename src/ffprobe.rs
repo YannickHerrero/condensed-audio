@@ -64,8 +64,10 @@ impl ProbeResult {
 pub fn probe(video: &Path) -> Result<ProbeResult> {
     let output = Command::new("ffprobe")
         .args([
-            "-v", "error",
-            "-print_format", "json",
+            "-v",
+            "error",
+            "-print_format",
+            "json",
             "-show_streams",
             "-show_format",
         ])
@@ -81,9 +83,11 @@ pub fn probe(video: &Path) -> Result<ProbeResult> {
     let parsed: ProbeOutput =
         serde_json::from_slice(&output.stdout).context("parsing ffprobe json")?;
 
-    let duration_ms = parsed.format.duration.as_deref().and_then(|s| {
-        s.parse::<f64>().ok().map(|d| (d * 1000.0).round() as u64)
-    });
+    let duration_ms = parsed
+        .format
+        .duration
+        .as_deref()
+        .and_then(|s| s.parse::<f64>().ok().map(|d| (d * 1000.0).round() as u64));
 
     Ok(ProbeResult {
         streams: parsed.streams,
