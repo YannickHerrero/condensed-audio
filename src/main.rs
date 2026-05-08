@@ -1,5 +1,6 @@
 mod cli;
 mod discovery;
+mod ffprobe;
 mod picker;
 
 use std::env;
