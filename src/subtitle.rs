@@ -3,7 +3,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{Result, bail};
 
 use crate::discovery;
+use crate::ffprobe::Stream;
 use crate::picker::{self, PickOpts};
+
+const TEXT_SUB_CODECS: &[&str] = &["subrip", "ass", "ssa", "mov_text", "webvtt"];
 
 #[derive(Debug, Clone, Copy)]
 pub enum Source {
@@ -40,4 +43,45 @@ pub fn pick_external_srt(root: &Path) -> Result<Option<PathBuf>> {
         PickOpts { prompt: "external srt" },
     )?;
     Ok(picked.map(PathBuf::from))
+}
+
+pub fn pick_embedded_track(streams: &[&Stream]) -> Result<Option<u32>> {
+    let candidates: Vec<&&Stream> = streams
+        .iter()
+        .filter(|s| {
+            s.codec_name
+                .as_deref()
+                .map(|c| TEXT_SUB_CODECS.contains(&c))
+                .unwrap_or(false)
+        })
+        .collect();
+
+    if candidates.is_empty() {
+        bail!("no text-based embedded subtitle tracks found (PGS/VobSub aren't supported)");
+    }
+
+    let labels: Vec<String> = candidates
+        .iter()
+        .map(|s| format_stream_label(s))
+        .collect();
+
+    let picked = picker::pick(
+        labels.iter().map(String::as_str),
+        PickOpts { prompt: "subtitle track" },
+    )?;
+    let Some(picked) = picked else { return Ok(None) };
+
+    let idx = labels.iter().position(|l| *l == picked).unwrap();
+    Ok(Some(candidates[idx].index))
+}
+
+fn format_stream_label(s: &Stream) -> String {
+    let codec = s.codec_name.as_deref().unwrap_or("?");
+    let lang = s.language().unwrap_or("und");
+    let title = s.title().unwrap_or("");
+    if title.is_empty() {
+        format!("#{}  lang={}  codec={}", s.index, lang, codec)
+    } else {
+        format!("#{}  lang={}  codec={}  title={}", s.index, lang, codec, title)
+    }
 }
