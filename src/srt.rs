@@ -107,7 +107,6 @@ pub fn clean_text(input: &str) -> String {
     out_lines.join("\n")
 }
 
-#[allow(dead_code)] // wired in a later commit
 pub fn write(path: &Path, cues: &[Cue]) -> Result<()> {
     let mut f = fs::File::create(path).with_context(|| format!("creating {}", path.display()))?;
     for (i, cue) in cues.iter().enumerate() {

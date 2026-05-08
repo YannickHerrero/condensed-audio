@@ -116,9 +116,13 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
-    // 8. Encode.
+    // 8. Remap cues onto the condensed timeline (for the new SRT).
+    let remapped = segments::remap_cues(&cues, &segments);
+
+    // 9. Encode audio, then write the matching SRT.
     println!("encoding to {} …", out.mp3.display());
     extract::encode(&video, audio_idx, &segments, &out.mp3)?;
+    srt::write(&out.srt, &remapped)?;
     println!("done: {}", out.dir.display());
 
     Ok(())

@@ -59,7 +59,6 @@ pub fn total_duration_ms(segments: &[Segment]) -> u64 {
 ///
 /// Cues that don't fall inside any segment are skipped (defensive — by
 /// construction every surviving cue is contained in exactly one segment).
-#[allow(dead_code)] // wired in a later commit
 pub fn remap_cues(cues: &[Cue], segments: &[Segment]) -> Vec<Cue> {
     let mut sorted: Vec<&Cue> = cues.iter().collect();
     sorted.sort_by_key(|c| c.start_ms);
