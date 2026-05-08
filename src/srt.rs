@@ -106,17 +106,12 @@ pub fn clean_text(input: &str) -> String {
     out_lines.join("\n")
 }
 
-/// Filter cues whose text becomes empty after cleaning.
+/// Drop cues whose cleaned text is empty (pure SDH/music/etc).
+/// Surviving cues are returned with their **original** text untouched, so
+/// the new SRT preserves italics and original spacing.
 pub fn filter_noise(cues: Vec<Cue>) -> Vec<Cue> {
     cues.into_iter()
-        .filter_map(|c| {
-            let cleaned = clean_text(&c.text);
-            if cleaned.is_empty() {
-                None
-            } else {
-                Some(Cue { text: cleaned, ..c })
-            }
-        })
+        .filter(|c| !clean_text(&c.text).is_empty())
         .collect()
 }
 
@@ -212,5 +207,17 @@ mod tests {
         let kept = filter_noise(cues);
         assert_eq!(kept.len(), 1);
         assert_eq!(kept[0].text, "Real line");
+    }
+
+    #[test]
+    fn filter_noise_preserves_original_formatting() {
+        let cues = vec![Cue {
+            start_ms: 0,
+            end_ms: 1000,
+            text: "<i>Bonjour</i>".into(),
+        }];
+        let kept = filter_noise(cues);
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0].text, "<i>Bonjour</i>");
     }
 }
