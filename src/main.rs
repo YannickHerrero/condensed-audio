@@ -2,6 +2,7 @@ mod cli;
 mod discovery;
 mod ffprobe;
 mod picker;
+mod subtitle;
 
 use std::env;
 
