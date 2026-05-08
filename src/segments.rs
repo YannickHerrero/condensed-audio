@@ -74,7 +74,9 @@ pub fn remap_cues(cues: &[Cue], segments: &[Segment]) -> Vec<Cue> {
             prior += segments[seg_idx].duration_ms();
             seg_idx += 1;
         }
-        let Some(seg) = segments.get(seg_idx) else { break };
+        let Some(seg) = segments.get(seg_idx) else {
+            break;
+        };
         if cue.start_ms < seg.start_ms || cue.end_ms > seg.end_ms {
             // Cue isn't fully contained — skip rather than emit garbage timing.
             continue;
@@ -200,7 +202,13 @@ mod tests {
         let cues = vec![cue_t(1000, 2000, "a"), cue_t(2400, 3000, "b")];
         let segs = build(&cues, 500, 0, None);
         assert_eq!(segs.len(), 1);
-        assert_eq!(segs[0], Segment { start_ms: 500, end_ms: 3500 });
+        assert_eq!(
+            segs[0],
+            Segment {
+                start_ms: 500,
+                end_ms: 3500
+            }
+        );
         let mapped = remap_cues(&cues, &segs);
         assert_eq!(mapped[0].start_ms, 500);
         assert_eq!(mapped[0].end_ms, 1500);

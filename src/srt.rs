@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 use std::sync::OnceLock;
 
@@ -106,6 +107,31 @@ pub fn clean_text(input: &str) -> String {
     out_lines.join("\n")
 }
 
+#[allow(dead_code)] // wired in a later commit
+pub fn write(path: &Path, cues: &[Cue]) -> Result<()> {
+    let mut f = fs::File::create(path).with_context(|| format!("creating {}", path.display()))?;
+    for (i, cue) in cues.iter().enumerate() {
+        writeln!(f, "{}", i + 1)?;
+        writeln!(
+            f,
+            "{} --> {}",
+            format_timestamp(cue.start_ms),
+            format_timestamp(cue.end_ms)
+        )?;
+        writeln!(f, "{}", cue.text)?;
+        writeln!(f)?;
+    }
+    Ok(())
+}
+
+fn format_timestamp(ms: u64) -> String {
+    let h = ms / 3_600_000;
+    let m = (ms / 60_000) % 60;
+    let s = (ms / 1_000) % 60;
+    let frac = ms % 1_000;
+    format!("{h:02}:{m:02}:{s:02},{frac:03}")
+}
+
 /// Drop cues whose cleaned text is empty (pure SDH/music/etc).
 /// Surviving cues are returned with their **original** text untouched, so
 /// the new SRT preserves italics and original spacing.
@@ -207,6 +233,33 @@ mod tests {
         let kept = filter_noise(cues);
         assert_eq!(kept.len(), 1);
         assert_eq!(kept[0].text, "Real line");
+    }
+
+    #[test]
+    fn formats_timestamp() {
+        assert_eq!(format_timestamp(0), "00:00:00,000");
+        assert_eq!(format_timestamp(1_500), "00:00:01,500");
+        assert_eq!(format_timestamp(3_661_250), "01:01:01,250");
+    }
+
+    #[test]
+    fn write_then_parse_roundtrip() {
+        let cues = vec![
+            Cue {
+                start_ms: 500,
+                end_ms: 1_500,
+                text: "<i>Hello</i>".into(),
+            },
+            Cue {
+                start_ms: 1_900,
+                end_ms: 3_000,
+                text: "Two\nlines".into(),
+            },
+        ];
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+        write(tmp.path(), &cues).unwrap();
+        let parsed = parse_file(tmp.path()).unwrap();
+        assert_eq!(parsed, cues);
     }
 
     #[test]
