@@ -1,7 +1,9 @@
 use std::fs;
 use std::path::Path;
+use std::sync::OnceLock;
 
 use anyhow::{Context, Result, bail};
+use regex::Regex;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cue {
@@ -83,6 +85,64 @@ fn parse_timestamp(s: &str) -> Result<u64> {
     Ok(((h * 3600 + m * 60 + sec) * 1000) + ms)
 }
 
+/// Strip styling/SDH noise from a cue. Returns the cleaned text, possibly empty
+/// if every line was just noise.
+pub fn clean_text(input: &str) -> String {
+    let html = html_re().replace_all(input, "");
+    let ass = ass_re().replace_all(&html, "");
+    let no_music = music_re().replace_all(&ass, "");
+
+    let mut out_lines: Vec<String> = Vec::new();
+    for line in no_music.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if is_only_bracketed(trimmed) {
+            continue;
+        }
+        out_lines.push(trimmed.to_string());
+    }
+    out_lines.join("\n")
+}
+
+/// Filter cues whose text becomes empty after cleaning.
+pub fn filter_noise(cues: Vec<Cue>) -> Vec<Cue> {
+    cues.into_iter()
+        .filter_map(|c| {
+            let cleaned = clean_text(&c.text);
+            if cleaned.is_empty() {
+                None
+            } else {
+                Some(Cue { text: cleaned, ..c })
+            }
+        })
+        .collect()
+}
+
+fn html_re() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| Regex::new(r"<[^>]+>").unwrap())
+}
+
+fn ass_re() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| Regex::new(r"\{[^}]*\}").unwrap())
+}
+
+fn music_re() -> &'static Regex {
+    static R: OnceLock<Regex> = OnceLock::new();
+    R.get_or_init(|| Regex::new(r"[\u{266A}\u{266B}\u{266C}\u{266D}\u{266E}\u{266F}]").unwrap())
+}
+
+/// True when the line is entirely a bracketed SDH descriptor like
+/// "[door slams]" or "(in Spanish)".
+fn is_only_bracketed(line: &str) -> bool {
+    let s = line.trim();
+    (s.starts_with('[') && s.ends_with(']'))
+        || (s.starts_with('(') && s.ends_with(')'))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,5 +172,34 @@ mod tests {
         let cues = parse_str(input).unwrap();
         assert_eq!(cues.len(), 1);
         assert_eq!(cues[0].text, "Hi");
+    }
+
+    #[test]
+    fn cleans_html_and_ass_tags() {
+        assert_eq!(clean_text("<i>hello</i> {\\an8}world"), "hello world");
+    }
+
+    #[test]
+    fn drops_pure_sdh_lines() {
+        assert_eq!(clean_text("[door slams]"), "");
+        assert_eq!(clean_text("(in Spanish)"), "");
+        assert_eq!(clean_text("Hello\n[noise]\nworld"), "Hello\nworld");
+    }
+
+    #[test]
+    fn strips_music_notes() {
+        assert_eq!(clean_text("\u{266A} la la la \u{266A}"), "la la la");
+    }
+
+    #[test]
+    fn filter_noise_drops_empty_cues() {
+        let cues = vec![
+            Cue { start_ms: 0, end_ms: 1000, text: "[music]".into() },
+            Cue { start_ms: 1000, end_ms: 2000, text: "Real line".into() },
+            Cue { start_ms: 2000, end_ms: 3000, text: "<i>♪</i>".into() },
+        ];
+        let kept = filter_noise(cues);
+        assert_eq!(kept.len(), 1);
+        assert_eq!(kept[0].text, "Real line");
     }
 }
