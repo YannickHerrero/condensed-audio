@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
+use tempfile::NamedTempFile;
 
 use crate::discovery;
 use crate::ffprobe::Stream;
@@ -73,6 +75,32 @@ pub fn pick_embedded_track(streams: &[&Stream]) -> Result<Option<u32>> {
 
     let idx = labels.iter().position(|l| *l == picked).unwrap();
     Ok(Some(candidates[idx].index))
+}
+
+/// Extract an embedded subtitle stream to a temporary .srt file.
+/// `stream_index` is the global ffprobe index.
+pub fn extract_embedded_to_srt(video: &Path, stream_index: u32) -> Result<NamedTempFile> {
+    let tmp = tempfile::Builder::new()
+        .prefix("condensed-audio-")
+        .suffix(".srt")
+        .tempfile()
+        .context("creating temp srt file")?;
+
+    let status = Command::new("ffmpeg")
+        .arg("-y")
+        .arg("-v").arg("error")
+        .arg("-i").arg(video)
+        .arg("-map").arg(format!("0:{stream_index}"))
+        .arg("-c:s").arg("srt")
+        .arg(tmp.path())
+        .status()
+        .context("failed to spawn ffmpeg")?;
+
+    if !status.success() {
+        bail!("ffmpeg failed extracting subtitle stream {stream_index}");
+    }
+
+    Ok(tmp)
 }
 
 fn format_stream_label(s: &Stream) -> String {
